@@ -2,22 +2,42 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Article;
-use App\Comment;
-use App\User;
-use App\Visitor;
+use App\Repositories\UserRepository;
+use App\Repositories\VisitorRepository;
+use App\Repositories\ArticleRepository;
+use App\Repositories\CommentRepository;
 
 class HomeController extends ApiController
 {
+    protected $user;
+    protected $visitor;
+    protected $article;
+    protected $comment;
+
+    public function __construct(
+        UserRepository $user,
+        VisitorRepository $visitor,
+        ArticleRepository $article,
+        CommentRepository $comment)
+    {
+        parent::__construct();
+
+        $this->user = $user;
+        $this->visitor = $visitor;
+        $this->article = $article;
+        $this->comment = $comment;
+    }
+
     public function statistics()
     {
-        $users = User::query()->count();
-        $visitors = Visitor::query()->sum('clicks');
-        $articles = Article::query()->count();
-        $comments = Comment::query()->count();
+        $users = $this->user->getNumber();
+        $visitors = (int) $this->visitor->getAllClicks();
+        $articles = $this->article->getNumber();
+        $comments = $this->comment->getNumber();
 
         $data = compact('users', 'visitors', 'articles', 'comments');
 
         return $this->response->json($data);
     }
+
 }

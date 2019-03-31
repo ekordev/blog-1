@@ -8,7 +8,7 @@
                     {{ csrf_field() }}
 
                     <div class="form-group row">
-                        <label for="title" class="col-sm-2 col-form-label">{{ lang('Discuss Title') }}</label>
+                        <label for="title" class="col-sm-2 col-form-label">{{ lang('Discussion Title') }}</label>
                         <div class="col-sm-10">
                             <input type="text" id="title" name="title" class="form-control{{ $errors->has('title') ? ' is-invalid' : '' }}" value="{{ old('title') }}">
 
@@ -36,7 +36,7 @@
                         </div>
                     </div>
                     <div class="form-group row">
-                        <label for="content" class="col-sm-2 col-form-label">{{ lang('Discuss Content') }}</label>
+                        <label for="content" class="col-sm-2 col-form-label">{{ lang('Discussion Content') }}</label>
                         <div class="col-sm-10">
                             <textarea class="form-control{{ $errors->has('content') ? ' is-invalid' : '' }}" id="content" rows="12" name="content">{{ old('content') }}</textarea>
 

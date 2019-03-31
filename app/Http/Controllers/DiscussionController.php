@@ -2,15 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Discussion;
+use App\Repositories\TagRepository;
 use App\Http\Requests\DiscussionRequest;
-use App\Tag;
+use App\Repositories\DiscussionRepository;
 
 class DiscussionController extends Controller
 {
-    public function __construct()
+    /**
+     * @var \App\Repositories\DiscussionRepository
+     */
+    protected $discussion;
+
+    /**
+     * @var \App\Repositories\TagRepository
+     */
+    protected $tag;
+
+    public function __construct(DiscussionRepository $discussion, TagRepository $tag)
     {
         $this->middleware('auth')->except(['index', 'show']);
+
+        $this->discussion = $discussion;
+        $this->tag = $tag;
     }
 
     /**
@@ -20,9 +33,7 @@ class DiscussionController extends Controller
      */
     public function index()
     {
-        $discussions = Discussion::checkAuth()
-            ->orderBy(config('blog.discussion.sortColumn'), config('blog.discussion.sort'))
-            ->paginate(config('blog.discussion.number'));
+        $discussions = $this->discussion->page(config('blog.discussion.number'), config('blog.discussion.sort'), config('blog.discussion.sortColumn'));
 
         return view('discussion.index', compact('discussions'));
     }
@@ -34,7 +45,7 @@ class DiscussionController extends Controller
      */
     public function create()
     {
-        $tags = Tag::query()->get();
+        $tags = $this->tag->all();
 
         return view('discussion.create', compact('tags'));
     }
@@ -42,25 +53,20 @@ class DiscussionController extends Controller
     /**
      * Store a new discussion.
      *
-     * @param DiscussionRequest $request
-     *
+     * @param  DiscussionRequest $request
      * @return \Illuminate\Http\Response
      */
     public function store(DiscussionRequest $request)
     {
         $data = array_merge($request->all(), [
-            'user_id' => \Auth::id(),
+            'user_id'      => \Auth::id(),
             'last_user_id' => \Auth::id(),
-            'status' => true,
+            'status'       => true
         ]);
 
-        $discussion = Discussion::create($data);
+        $data['content'] = $data['content'];
 
-        if (is_array($data['tags'])) {
-            $discussion->tags()->sync($data['tags']);
-        } else {
-            $discussion->tags()->sync(json_decode($data['tags']));
-        }
+        $this->discussion->store($data);
 
         return redirect()->to('discussion');
     }
@@ -68,13 +74,12 @@ class DiscussionController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param int $id
-     *
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function show($id)
     {
-        $discussion = Discussion::query()->checkAuth()->findOrFail($id);
+        $discussion = $this->discussion->getById($id);
 
         return view('discussion.show', compact('discussion'));
     }
@@ -82,19 +87,18 @@ class DiscussionController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param int $id
-     *
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function edit($id)
     {
-        $discussion = Discussion::query()->checkAuth()->findOrFail($id);
+        $discussion = $this->discussion->getById($id);
 
         $this->authorize('update', $discussion);
 
-        $tags = Tag::query()->get();
+        $tags = $this->tag->all();
 
-        $selectTags = $discussion->tags->pluck('id')->toArray();
+        $selectTags = $this->discussion->listTagsIdsForDiscussion($discussion);
 
         return view('discussion.edit', compact('discussion', 'tags', 'selectTags'));
     }
@@ -102,22 +106,23 @@ class DiscussionController extends Controller
     /**
      * Update the discussion by id.
      *
-     * @param DiscussionRequest $request
-     * @param int               $id
-     *
+     * @param  DiscussionRequest $request
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function update(DiscussionRequest $request, $id)
     {
-        $discussion = Discussion::query()->checkAuth()->findOrFail($id);
+        $discussion = $this->discussion->getById($id);
 
         $this->authorize('update', $discussion);
 
         $data = array_merge($request->all(), [
-            'last_user_id' => \Auth::id(),
+            'last_user_id' => \Auth::id()
         ]);
 
-        $discussion->update($data);
+        $data['content'] = $data['content'];
+
+        $this->discussion->update($id, $data);
 
         return redirect()->to("discussion/{$id}");
     }

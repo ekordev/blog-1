@@ -2,16 +2,23 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Notifications\MentionedUser;
-use App\Tools\Mention;
 use Auth;
 use Illuminate\Http\Request;
 use App\Http\Requests\CommentRequest;
+use App\Repositories\CommentRepository;
 use App\Notifications\ReceivedComment as Received;
-use App\Comment;
 
 class CommentController extends ApiController
 {
+    protected $comment;
+
+    public function __construct(CommentRepository $comment)
+    {
+        parent::__construct();
+
+        $this->comment = $comment;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -19,41 +26,26 @@ class CommentController extends ApiController
      */
     public function index(Request $request)
     {
-        $keyword = $request->get('keyword');
-        $commemts = Comment::query()->when($keyword, function ($query) use ($keyword) {
-            $query->whereHas('user', function ($query) use ($keyword) {
-                $query->where('name', 'like', "%{$keyword}%");
-            });
-        })
-            ->orderBy('created_at', 'desc')->paginate(10);
-
-        return $this->response->collection($commemts);
+        return $this->response->collection($this->comment->pageWithRequest($request));
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param \App\Http\Requests\CommentRequest $request
+     * @param  \App\Http\Requests\CommentRequest  $request
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(CommentRequest $request)
     {
+        $data = array_merge($request->all(), [
+            'user_id' => Auth::user()->id
+        ]);
 
-		$data = $request->all();
-		if ($data['commentable_type'] === 'articles') {
-			$article = \App\Article::find($data['commentable_id']);
-			if (!auth()->user()->can('comment',$article)) return response()->json([],403);
-		}
+        $data['content'] = $data['content'];
 
-        $data['user_id'] = Auth::user()->id;
+        $comment = $this->comment->store($data);
 
-        $mention = new Mention();
-        $data['content'] = $mention->parse($data['content']);
-        $comment = Comment::create($data);
-        foreach ($mention->users as $user) {
-            $user->notify(new MentionedUser($comment));
-        }
         $comment->commentable->user->notify(new Received($comment));
 
         return $this->response->item($comment);
@@ -62,16 +54,14 @@ class CommentController extends ApiController
     /**
      * Display the specified resource.
      *
-     * @param int $commentableId
+     * @param  int  $commentableId
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function show(Request $request, $commentableId)
     {
         $commentableType = $request->get('commentable_type');
-        $comments = Comment::query()->where('commentable_id', $commentableId)
-            ->where('commentable_type', $commentableType)
-            ->get();
+        $comments = $this->comment->getByCommentable($commentableId, $commentableType);
 
         return $this->response->collection($comments);
     }
@@ -79,28 +69,29 @@ class CommentController extends ApiController
     /**
      * Show the form for editing the specified resource.
      *
-     * @param int $id
+     * @param  int  $id
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function edit($id)
     {
-        return $this->response->item(Comment::findOrFail($id));
+        return $this->response->item($this->comment->getById($id));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param \App\Http\Requests\CommentRequest $request
-     * @param int                               $id
-     *
+     * @param  \App\Http\Requests\CommentRequest  $request
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function update(CommentRequest $request, $id)
     {
         $data = $request->all();
 
-        Comment::findOrFail($id)->update($data);
+        $data['content'] = $data['content'];
+
+        $this->comment->update($id, $data);
 
         return $this->response->withNoContent();
     }
@@ -108,16 +99,15 @@ class CommentController extends ApiController
     /**
      * Remove the specified resource from storage.
      *
-     * @param int $id
+     * @param  int  $id
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
-        $comment = Comment::findOrFail($id);
-        $this->authorize('delete', $comment);
+        $this->authorize('delete', $this->comment->getById($id));
 
-        $comment->delete();
+        $this->comment->destroy($id);
 
         return $this->response->withNoContent();
     }

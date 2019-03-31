@@ -2,9 +2,9 @@
 
 @section('content')
     @component('particals.jumbotron')
-        <h4>{{ lang('Discuss Problem') }}</h4>
+        <h4>{{ lang('Discussions') }}</h4>
 
-        <h6>{{ lang('Discuss Subtitle') }}</h6>
+        <h6>{{ ('Feel free to open a new discussion or join one below.') }}</h6>
 
         <a href="{{ url('discussion/create') }}" class="btn btn-info btn-sm"><i class="fas fa-pencil-alt"></i> {{ lang('Submit Problem') }}</a>
     @endcomponent
@@ -33,7 +33,7 @@
                                 {{ lang('Replies') }}
                             </div>
                         </div>
-                        {{ $discussion->user->name ?? 'null' }}
+                        {{ $discussion->user->name or 'null' }}
                     </div>
                 </div>
                 @empty

@@ -2,14 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Article;
+use App\Http\Requests;
 use Illuminate\Http\Request;
+use App\Repositories\ArticleRepository;
 
 class HomeController extends Controller
 {
+    protected $article;
+
+    public function __construct(ArticleRepository $article)
+    {
+        $this->article = $article;
+    }
+
     /**
      * Display the dashboard page.
-     *
+     * 
      * @return mixed
      */
     public function dashboard()
@@ -19,18 +27,15 @@ class HomeController extends Controller
 
     /**
      * Search the article by keyword.
-     *
-     * @param Request $request
-     *
+     * 
+     * @param  Request $request
      * @return mixed
      */
     public function search(Request $request)
     {
         $key = trim($request->get('q'));
 
-        $articles = Article::query()->where('title', 'like', "%{$key}%")
-            ->orderBy('published_at', 'desc')
-            ->get();
+        $articles = $this->article->search($key);
 
         return view('search', compact('articles'));
     }

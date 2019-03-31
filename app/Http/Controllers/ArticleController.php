@@ -1,13 +1,22 @@
 <?php
 
 namespace App\Http\Controllers;
-
-use App\Article;
-use App\Visitor;
+use SEOMeta;
+use OpenGraph;
+use Twitter;
+use App\Http\Requests;
 use Illuminate\Http\Request;
+use App\Repositories\ArticleRepository;
 
 class ArticleController extends Controller
 {
+    protected $article;
+
+    public function __construct(ArticleRepository $article)
+    {
+        $this->article = $article;
+    }
+
     /**
      * Display the articles resource.
      *
@@ -15,35 +24,31 @@ class ArticleController extends Controller
      */
     public function index()
     {
-        $articles = Article::checkAuth()
-            ->orderBy(config('blog.article.sortColumn'), config('blog.article.sort'))
-            ->paginate(config('blog.article.number'));
+        $articles = $this->article->page(config('blog.article.number'), config('blog.article.sort'), config('blog.article.sortColumn'));
+        SEOMeta::setTitle('Articles on Internet safety & privacy');
+        SEOMeta::setDescription('Articles full of tips on internet safety & Internet privacy');
+        SEOMeta::setCanonical('https://checkon.tech');
 
+        OpenGraph::setDescription('Articles full of tips on internet safety & Internet privacy');
+        OpenGraph::setTitle('Articles');
+        OpenGraph::addProperty('type', 'articles');
+
+        Twitter::Setcard('summary');
+        Twitter::setTitle('Articles on Internet safety & privacy');
+        Twitter::setSite('@CheckonTech');
         return view('article.index', compact('articles'));
     }
 
     /**
      * Display the article resource by article slug.
      *
-     * @author Huiwang <905130909@qq.com>
-     *
-     * @param Request $request
-     * @param $slug
-     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     * @param  string $slug
+     * @return mixed
      */
-    public function show(Request $request, $slug)
+    public function show($slug)
     {
-        $article = Article::checkAuth()->where('slug', $slug)->firstOrFail();
-
-        $article->increment('view_count');
-
-        $ip = $request->getClientIp();
-
-        if ($ip == '::1') {
-            $ip = '127.0.0.1';
-        }
-
-        Visitor::log($article->id, $ip);
+        $article = $this->article->getBySlug($slug);
+        
 
         return view('article.show', compact('article'));
     }

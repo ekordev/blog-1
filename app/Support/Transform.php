@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use Illuminate\Support\Arr;
 use League\Fractal\Manager;
 use App\Transformers\EmptyTransformer;
 use League\Fractal\TransformerAbstract;
@@ -43,8 +42,8 @@ class Transform
      *
      * @param $data
      * @param TransformerAbstract|null $transformer
+     *
      * @return array
-     * @throws \Exception
      */
     public function collection($data, TransformerAbstract $transformer = null)
     {
@@ -64,8 +63,8 @@ class Transform
      *
      * @param $data
      * @param TransformerAbstract|null $transformer
+     *
      * @return array
-     * @throws \Exception
      */
     public function item($data, TransformerAbstract $transformer = null)
     {
@@ -128,7 +127,7 @@ class Transform
     protected function getClassName($object)
     {
         if ($object instanceof LengthAwarePaginator || $object instanceof Collection) {
-            return get_class(Arr::first($object));
+            return get_class(array_first($object));
         }
 
         if (!is_string($object) && !is_object($object)) {

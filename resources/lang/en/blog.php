@@ -66,7 +66,7 @@ return [
     'Confirm Password'     => 'Confirm Password',
     'Has Account'          => 'Already have an account? Click Here.',
     'Reset Password Link'  => 'Send Password Reset Link',
-    'Links'                => 'Links',
+    'Links'                => 'Tools & Links',
     'Contact Me'           => 'Contact Me',
     'About Me'             => 'ABOUT ME',
     'Tags'                 => 'Tags',

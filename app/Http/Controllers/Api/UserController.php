@@ -2,15 +2,22 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Scopes\StatusScope;
-use App\User;
-use Illuminate\Support\Str;
 use Image;
 use Illuminate\Http\Request;
 use App\Http\Requests\UserRequest;
+use App\Repositories\UserRepository;
 
 class UserController extends ApiController
 {
+    protected $user;
+
+    public function __construct(UserRepository $user)
+    {
+        parent::__construct();
+
+        $this->user = $user;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -18,35 +25,25 @@ class UserController extends ApiController
      */
     public function index(Request $request)
     {
-        $keyword = $request->get('keyword');
-
-        $users = User::withoutGlobalScope(StatusScope::class)
-            ->when($keyword, function ($query) use ($keyword) {
-                $query->where('name', 'like', "%{$keyword}%");
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-
-        return $this->response->collection($users);
+        return $this->response->collection($this->user->pageWithRequest($request));
     }
 
     /**
-     * Update User Status By User ID.
+     * Update User Status By User ID
      *
      * @param $id
      * @param Request $request
-     *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function status(Request $request, $id)
+    public function status($id, Request $request)
     {
         $input = $request->all();
-        $user = User::withoutGlobalScope(StatusScope::class)->findOrFail($id);
-        if (auth()->user()->id == $id || $user->is_admin) {
+
+        if (auth()->user()->id == $id || $this->user->getById($id)->is_admin) {
             return $this->response->withUnauthorized('You can\'t change status for yourself and other Administrators!');
         }
 
-        $user->update($input);
+        $this->user->update($id, $input);
 
         return $this->response->withNoContent();
     }
@@ -54,22 +51,17 @@ class UserController extends ApiController
     /**
      * Store a newly created resource in storage.
      *
-     * @param \App\Http\Requests\UserRequest $request
-     *
+     * @param  \App\Http\Requests\UserRequest  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(UserRequest $request)
     {
         $data = array_merge($request->all(), [
             'password' => bcrypt($request->get('password')),
-            'confirm_code' => Str::random(64),
+            'confirm_code' => str_random(64)
         ]);
 
-        \DB::transaction(function () use ($request, $data) {
-            $user = User::create($data);
-
-            $user->syncRoles($request->get('roles'));
-        });
+        $this->user->store($data);
 
         return $this->response->withNoContent();
     }
@@ -77,43 +69,32 @@ class UserController extends ApiController
     /**
      * Show the form for editing the specified resource.
      *
-     * @param int $id
-     *
+     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function edit($id)
     {
-        $user = User::withoutGlobalScopes()->findOrFail($id);
-
-        return $this->response->item($user);
+        return $this->response->item($this->user->getById($id));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param \Illuminate\Http\Request $request
-     * @param int                      $id
-     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
-
-        \DB::transaction(function () use ($request, $user) {
-            $user->update($request->all());
-
-            $user->syncRoles($request->get('roles'));
-        });
+        $this->user->update($id, $request->all());
 
         return $this->response->withNoContent();
     }
 
     /**
-     * Crop Avatar.
+     * Crop Avatar
      *
-     * @param Request $request
-     *
+     * @param  Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function cropAvatar(Request $request)
@@ -135,18 +116,16 @@ class UserController extends ApiController
     /**
      * Remove the specified resource from storage.
      *
-     * @param int $id
-     *
+     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
-        $user = User::findOrFail($id);
-        if (auth()->user()->id == $id || $user->is_admin) {
+        if (auth()->user()->id == $id || $this->user->getById($id)->is_admin) {
             return $this->response->withUnauthorized('You can\'t delete for yourself and other Administrators!');
         }
 
-        $user->destroy($id);
+        $this->user->destroy($id);
 
         return $this->response->withNoContent();
     }

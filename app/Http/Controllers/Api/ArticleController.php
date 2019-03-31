@@ -2,13 +2,21 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Article;
-use App\Scopes\DraftScope;
 use Illuminate\Http\Request;
 use App\Http\Requests\ArticleRequest;
+use App\Repositories\ArticleRepository;
 
 class ArticleController extends ApiController
 {
+    protected $article;
+
+    public function __construct(ArticleRepository $article)
+    {
+        parent::__construct();
+
+        $this->article = $article;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -16,40 +24,30 @@ class ArticleController extends ApiController
      */
     public function index(Request $request)
     {
-        $keyword = $request->get('keyword');
-
-        $articles = Article::checkAuth()
-            ->when($keyword, function ($query) use ($keyword) {
-                $query->where('title', 'like', "%{$keyword}%")
-                    ->orWhere('subtitle', 'like', "%{$keyword}%");
-            })
-            ->orderBy('created_at', 'desc')->paginate(10);
-
-        return $this->response->collection($articles);
+        return $this->response->collection($this->article->pageWithRequest($request));
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param \App\Http\Requests\ArticleRequest $request
+     * @param  \App\Http\Requests\ArticleRequest  $request
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(ArticleRequest $request)
     {
         $data = array_merge($request->all(), [
-            'user_id' => \Auth::id(),
-            'last_user_id' => \Auth::id(),
+            'user_id'      => \Auth::id(),
+            'last_user_id' => \Auth::id()
         ]);
 
-        $data['is_draft'] = isset($data['is_draft']);
+        $data['is_draft']    = isset($data['is_draft']);
         $data['is_original'] = isset($data['is_original']);
+        $data['content'] = $data['content'];
 
-        $article = new Article();
-        $article->fill($data);
-        $article->save();
+        $this->article->store($data);
 
-        $article->tags()->sync(json_decode($request->get('tags')));
+        $this->article->syncTag(json_decode($request->get('tags')));
 
         return $this->response->withNoContent();
     }
@@ -57,34 +55,34 @@ class ArticleController extends ApiController
     /**
      * Show the form for editing the specified resource.
      *
-     * @param int $id
+     * @param  int  $id
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function edit($id)
     {
-        $article = Article::withoutGlobalScope(DraftScope::class)->findOrFail($id);
-
-        return $this->response->item($article);
+        return $this->response->item($this->article->getById($id));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param \App\Http\Requests\ArticleRequest $request
-     * @param int                               $id
+     * @param  \App\Http\Requests\ArticleRequest  $request
+     * @param  int  $id
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(ArticleRequest $request, $id)
     {
         $data = array_merge($request->all(), [
-            'last_user_id' => \Auth::id(),
+            'last_user_id' => \Auth::id()
         ]);
-        $article = Article::withoutGlobalScope(DraftScope::class)->findOrFail($id);
-        $article->update($data);
 
-        $article->tags()->sync(json_decode($request->get('tags')));
+        $data['content'] = $data['content'];
+
+        $this->article->update($id, $data);
+
+        $this->article->syncTag(json_decode($request->get('tags')));
 
         return $this->response->withNoContent();
     }
@@ -92,13 +90,13 @@ class ArticleController extends ApiController
     /**
      * Remove the specified resource from storage.
      *
-     * @param int $id
+     * @param  int  $id
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
-        Article::withoutGlobalScope(DraftScope::class)->findOrFail($id)->delete();
+        $this->article->destroy($id);
 
         return $this->response->withNoContent();
     }

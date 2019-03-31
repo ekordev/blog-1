@@ -2,12 +2,21 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Tag;
 use Illuminate\Http\Request;
 use App\Http\Requests\TagRequest;
+use App\Repositories\TagRepository;
 
 class TagController extends ApiController
 {
+    protected $tag;
+
+    public function __construct(TagRepository $tag)
+    {
+        parent::__construct();
+
+        $this->tag = $tag;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -15,16 +24,7 @@ class TagController extends ApiController
      */
     public function index(Request $request)
     {
-        $keyword = $request->get('keyword');
-
-        $tags = Tag::query()
-            ->when($keyword, function ($query) use ($keyword) {
-                $query->where('tag', 'like', "%{$keyword}%")
-                    ->orWhere('title', 'like', "%{$keyword}%");
-            })
-            ->orderBy('created_at', 'desc')->paginate(10);
-
-        return $this->response->collection($tags);
+        return $this->response->collection($this->tag->pageWithRequest($request));
     }
 
     /**
@@ -34,19 +34,19 @@ class TagController extends ApiController
      */
     public function getList()
     {
-        return $this->response->collection(Tag::all());
+        return $this->response->collection($this->tag->all());
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param \App\Http\Requests\TagRequest $request
+     * @param  \App\Http\Requests\TagRequest  $request
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(TagRequest $request)
     {
-        Tag::create($request->all());
+        $this->tag->store($request->all());
 
         return $this->response->withNoContent();
     }
@@ -54,26 +54,26 @@ class TagController extends ApiController
     /**
      * Show the form for editing the specified resource.
      *
-     * @param int $id
+     * @param  int  $id
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function edit($id)
     {
-        return $this->response->item(Tag::findOrFail($id));
+        return $this->response->item($this->tag->getById($id));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param Request $request
-     * @param int     $id
+     * @param  Request  $request
+     * @param  int  $id
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, $id)
     {
-        Tag::findOrFail($id)->update($request->except('tag'));
+        $this->tag->update($id, $request->except('tag'));
 
         return $this->response->withNoContent();
     }
@@ -81,13 +81,13 @@ class TagController extends ApiController
     /**
      * Remove the specified resource from storage.
      *
-     * @param int $id
+     * @param  int  $id
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
-        Tag::destroy($id);
+        $this->tag->destroy($id);
 
         return $this->response->withNoContent();
     }

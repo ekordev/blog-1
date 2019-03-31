@@ -25,10 +25,6 @@
 
         window.User = {!! Auth::user() !!}
 
-        window.Permissions = {!! Auth::user()->getAllPermissions()->pluck('name') !!}
-
-        window.isSuperAdmin = {!! Auth::user()->isSuperAdmin() !!}
-
         window.Language = "{{ config('app.locale') }}"
     </script>
 </head>

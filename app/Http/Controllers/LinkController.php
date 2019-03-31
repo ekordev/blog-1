@@ -2,18 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Link;
+use App\Http\Requests;
+use Illuminate\Http\Request;
+use App\Repositories\LinkRepository;
 
 class LinkController extends Controller
 {
+    protected $link;
+
+    public function __construct(LinkRepository $link)
+    {
+        $this->link = $link;
+    }
+
     /**
      * Display the link resource.
-     *
+     * 
      * @return mix
      */
     public function index()
     {
-        $links = Link::checkAuth()->orderBy('created_at', 'desc')->paginate(10);
+        $links = $this->link->page();
 
         return view('link.index', compact('links'));
     }

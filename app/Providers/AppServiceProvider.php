@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+         $this->app->bind('path.public', function() {
+        return base_path().'/../public_html';
+    });
         $lang = config('app.locale') != 'zh_cn' ? config('app.locale') : 'zh';
         \Carbon\Carbon::setLocale($lang);
 

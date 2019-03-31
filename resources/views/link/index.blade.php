@@ -2,7 +2,7 @@
 
 @section('content')
     @component('particals.jumbotron')
-        <h3>{{ lang('Links') }}</h3>
+    <img src="https://assets.checkon.tech/links.png" alt="Data Protection Links" style="max-width:100%;height:auto;">
     @endcomponent
 
     <div class="container">

@@ -13,7 +13,7 @@
                             <li class="list-group-item">
                                 <a href="{{ url('user', ['name' => $following->name]) }}">
                                     <img class="avatar img-circle" src="{{ $following->avatar }}">
-                                    {{ $following->nickname ?? $following->name }}
+                                    {{ $following->nickname or $following->name }}
                                 </a>
 
                                 @if($following->description)
